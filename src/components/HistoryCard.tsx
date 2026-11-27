@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { Image } from "expo-image";
 import { ChevronDown, ImageOff, Lightbulb, Trash2 } from "lucide-react-native";
@@ -25,7 +25,8 @@ function formatDate(value: string): string {
 export function HistoryCard({ row, onDelete }: Props) {
   const [expanded, setExpanded] = useState(false);
   const steps = toSteps(row.steps);
-  const thumbnail = historyThumbnail(row.image_url);
+  const [thumbnail, setThumbnail] = useState<string | null>(null);
+  useEffect(() => { let active = true; historyThumbnail(row.image_url).then((value) => { if (active) setThumbnail(value); }); return () => { active = false; }; }, [row.image_url]);
   const subjectKey = isSubjectKey(row.subject) ? row.subject : null;
   const subjectLabel = subjectKey ? SUBJECT_LABEL[subjectKey] : row.subject;
   const subjectColors = subjectKey ? SUBJECT_COLORS[subjectKey] : { soft: "#FDE7EF", solid: "#C43B70", text: "#8B294E" };

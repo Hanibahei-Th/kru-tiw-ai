@@ -32,7 +32,8 @@
 - ย่อภาพก่อนส่งวิเคราะห์ โดยใช้ภาพ JPEG สำหรับคำขอ AI
 - เลือกวิชาได้ 3 วิชา: คณิตศาสตร์, วิทยาศาสตร์ และภาษาอังกฤษ
 - รับคำแนะนำเป็นภาษาไทยทีละขั้น พร้อมคำใบ้ให้กำลังใจ
-- ดูและลบประวัติการถาม ซึ่งแยกตามรหัสอุปกรณ์
+- ดูและลบประวัติการถามที่ผูกกับบัญชีผู้ใช้ (ใช้ guest ได้โดยไม่ต้องสมัคร)
+- ใช้แบบ guest ได้ 10 ครั้งต่อวัน; สมัคร/เข้าสู่ระบบเพื่อใช้ต่อ โดยสมาชิกมีโควตาเริ่มต้น 50 ครั้งต่อวัน
 - ตั้ง Gemini API Key ส่วนตัวและทดสอบคีย์ได้
 - ใช้ธีมสีพาสเทล พร้อมรองรับการตั้งค่าโหมดสว่าง/มืดของระบบ
 
@@ -41,7 +42,7 @@
 ```text
 Expo / React Native app
    ├── Supabase Storage: เก็บภาพการบ้าน
-   ├── Supabase Database: เก็บวิชา ขั้นตอน คำใบ้ และรหัสอุปกรณ์
+   ├── Supabase Database: เก็บประวัติแบบผูกกับบัญชีและนับโควตารายวัน
    └── Supabase Edge Function: explainHomework
           ├── Gemini API โดยตรง เมื่อผู้ใช้ตั้ง API Key ส่วนตัว
           └── AI Gateway เมื่อไม่ได้ตั้งคีย์ส่วนตัว
@@ -110,9 +111,9 @@ pnpm install --frozen-lockfile
    supabase db push
    ```
 
-4. สร้าง Storage bucket `homework_images` ให้เป็น public จำกัดขนาดไฟล์ `1 MiB` และชนิดไฟล์ `image/jpeg`, `image/png`, `image/webp` ตาม `supabase/config.toml` แล้วตรวจสอบ policies ให้ตรงกับการใช้งาน
-5. Deploy Edge Function:
-
+4. เปิด Anonymous Sign-ins ที่ Authentication → Sign In / Providers; migration จะตั้ง bucket `homework_images` เป็น private และจำกัดสิทธิ์ตามบัญชีให้อัตโนมัติ
+5. ตั้งค่า email confirmation/SMTP และ URL สำหรับยืนยันอีเมลตามโดเมนแอปของโปรเจกต์
+6. Deploy Edge Function หลัง apply migration:
    ```bash
    supabase functions deploy explainHomework
    ```
@@ -215,11 +216,13 @@ pnpm-workspace.yaml             pnpm catalog และ config dependency
 ## ข้อมูลและความปลอดภัย
 
 - ตาราง `homework_history` เก็บ `device_id`, `subject`, `image_url`, `steps`, `hint` และ `created_at`
-- รหัสอุปกรณ์สร้างในแอปและเก็บใน local storage ของอุปกรณ์ ไม่มีระบบบัญชีผู้ใช้หรือซิงก์ข้ามอุปกรณ์
-- ภาพเก็บใน bucket `homework_images`; URL ของภาพถูกใช้ในรายการประวัติ
+- แอปสร้าง anonymous auth session ให้ guest; สมัครสมาชิกด้วยอีเมล/รหัสผ่านเพื่อผูก session เดิมและรักษาประวัติไว้
+- โควตา AI ตรวจบน Edge Function และฐานข้อมูล: guest 10 ครั้ง/วัน, สมาชิก 50 ครั้ง/วัน (UTC)
+- ภาพเก็บใน private bucket `homework_images`; ใช้ signed URL ชั่วคราวเพื่อแสดงประวัติ
+- RLS จำกัดประวัติและไฟล์ตาม `auth.uid()`; แถวเก่าที่มีเพียง device ID จะยังอยู่แต่ไม่มีเจ้าของที่ยืนยันได้ จึงไม่แสดงในบัญชีใหม่
 - API key ส่วนตัวเก็บใน SecureStore บนอุปกรณ์ ไม่เก็บในฐานข้อมูล
 - `.env`, `node_modules`, native build folders และไฟล์ชั่วคราวถูกละเว้นด้วย `.gitignore`
-- migration ปัจจุบันเปิด RLS แต่ policies สำหรับ anon อนุญาตให้อ่าน/เพิ่ม/แก้ไข/ลบข้อมูลได้กว้าง จึงเหมาะกับต้นแบบและการพัฒนามากกว่าระบบ production ที่เก็บข้อมูลผู้ใช้จริง ควรจำกัด policies ตามผู้ใช้หรืออุปกรณ์และทบทวนการเข้าถึง Storage ก่อนเผยแพร่
+- ต้องเปิด Anonymous Sign-ins ใน Supabase Authentication เพื่อให้ guest session ทำงาน และตั้งค่า email confirmation/SMTP ตามนโยบายของโปรเจกต์
 
 ## การแก้ปัญหาเบื้องต้น
 

@@ -6,7 +6,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { HistoryCard } from "@/components/HistoryCard";
 import { deleteHistoryItem, fetchHistory, type HistoryRow } from "@/db/api";
-import { getDeviceId } from "@/lib/device";
 
 export default function HistoryScreen() {
   const insets = useSafeAreaInsets();
@@ -19,7 +18,7 @@ export default function HistoryScreen() {
   const load = useCallback(async () => {
     try {
       setError(null);
-      const data = await fetchHistory(getDeviceId());
+      const data = await fetchHistory();
       setRows(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "โหลดประวัติไม่สำเร็จ");

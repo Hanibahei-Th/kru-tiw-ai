@@ -74,7 +74,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      consume_ai_quota: { Args: { p_user_id: string }; Returns: Json }
     }
     Enums: {
       [_ in never]: never

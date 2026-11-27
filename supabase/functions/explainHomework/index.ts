@@ -51,7 +51,6 @@ type Payload = {
   mimeType?: string;
   subject?: string;
   imageUrl?: string;
-  deviceId?: string;
 };
 
 type CallResult = { ok: boolean; status: number; text: string; detail: string };
@@ -186,8 +185,16 @@ Deno.serve(async (req) => {
     return json({ error: "คำขอไม่ถูกต้อง" }, 400);
   }
 
-  const { action, apiKey: userKey, imageBase64, mimeType, subject, imageUrl, deviceId } =
-    payload ?? {};
+  const { action, apiKey: userKey, imageBase64, mimeType, subject, imageUrl } = payload ?? {};
+
+  const authorization = req.headers.get("Authorization") ?? "";
+  const token = authorization.replace(/^Bearer\s+/i, "");
+  if (!token) return json({ error: "กรุณาเข้าสู่ระบบก่อนใช้งาน", code: "AUTH_REQUIRED" }, 401);
+  const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  const admin = createClient(supabaseUrl, serviceKey);
+  const { data: authData, error: authError } = await admin.auth.getUser(token);
+  if (authError || !authData.user) return json({ error: "เซสชันหมดอายุ กรุณาเปิดแอปใหม่", code: "AUTH_REQUIRED" }, 401);
 
   const trimmedUserKey = typeof userKey === "string" ? userKey.trim() : "";
 
@@ -215,6 +222,14 @@ Deno.serve(async (req) => {
   if (!subject || !SUBJECT_LABEL[subject]) {
     return json({ error: "กรุณาเลือกวิชาก่อนนะ" }, 400);
   }
+
+  const { data: quota, error: quotaError } = await admin.rpc("consume_ai_quota", { p_user_id: authData.user.id });
+  if (quotaError) { console.error("quota check failed", quotaError.message); return json({ error: "ตรวจสอบโควตาไม่สำเร็จ ลองใหม่อีกครั้ง", code: "QUOTA_ERROR" }, 503); }
+  const quotaResult = quota as { allowed?: boolean; login_required?: boolean; limit?: number } | null;
+  if (!quotaResult?.allowed) {
+    return json({ error: quotaResult?.login_required ? "ใช้ครบโควตาผู้ใช้ฟรีแล้ว" : "ใช้ครบโควตาวันนี้แล้ว กรุณากลับมาใหม่พรุ่งนี้", code: quotaResult?.login_required ? "LOGIN_REQUIRED" : "QUOTA_EXCEEDED", limit: quotaResult?.limit }, 429);
+  }
+
 
   const requestBody = {
     systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
@@ -257,12 +272,9 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const admin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-    );
     const { error } = await admin.from("homework_history").insert({
-      device_id: deviceId || "unknown",
+      device_id: authData.user.id,
+      owner_id: authData.user.id,
       subject,
       image_url: imageUrl ?? null,
       steps: explanation.steps,

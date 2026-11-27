@@ -1,15 +1,15 @@
 import { useCallback, useState } from "react";
+import { router } from "expo-router";
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from "react-native";
 import { Image } from "expo-image";
 import * as ImagePicker from "expo-image-picker";
 import { Camera, ImagePlus, Lightbulb, Sparkles, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { supabase } from "@/client/supabase";
+import { ensureSession, supabase } from "@/client/supabase";
 import { StepCard } from "@/components/StepCard";
 import { SubjectPicker } from "@/components/SubjectPicker";
 import { getApiKey } from "@/lib/apiKey";
-import { getDeviceId } from "@/lib/device";
 import { readFunctionError } from "@/lib/functionError";
 import { prepareImage } from "@/lib/image";
 import type { SubjectKey } from "@/lib/subjects";
@@ -91,14 +91,14 @@ export default function TutorScreen() {
     setHint("");
 
     try {
-      const deviceId = getDeviceId();
+      const session = await ensureSession();
       const [imageUrl, apiKey] = await Promise.all([
-        uploadHomeworkImage(imageUri, deviceId),
+        uploadHomeworkImage(imageUri, session.user.id),
         getApiKey(),
       ]);
 
       const { data, error: invokeError } = await supabase.functions.invoke("explainHomework", {
-        body: { imageBase64, mimeType: "image/jpeg", subject, imageUrl, deviceId, apiKey },
+        body: { imageBase64, mimeType: "image/jpeg", subject, imageUrl, apiKey },
       });
 
       if (invokeError) {
@@ -106,9 +106,10 @@ export default function TutorScreen() {
         return;
       }
 
-      const result = data as { steps?: string[]; hint?: string; error?: string } | null;
+      const result = data as { steps?: string[]; hint?: string; error?: string; code?: string } | null;
       if (result?.error) {
-        setError(result.error);
+        if (result.code === "LOGIN_REQUIRED") { setError("ใช้ครบ 10 ครั้งสำหรับผู้ใช้ฟรีแล้ว เข้าสู่ระบบหรือสมัครสมาชิกเพื่อใช้ต่อ"); router.push("/account" as never); }
+        else setError(result.error);
         return;
       }
 

@@ -8,7 +8,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import {
   CheckCircle2,
   ExternalLink,
@@ -22,7 +22,7 @@ import {
 } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { supabase } from "@/client/supabase";
+import { ensureSession, supabase } from "@/client/supabase";
 import { getApiKey, maskApiKey, saveApiKey } from "@/lib/apiKey";
 import { readFunctionError } from "@/lib/functionError";
 
@@ -104,6 +104,7 @@ export default function SettingsScreen() {
 
     setTest({ status: "loading", message: "" });
     try {
+      await ensureSession();
       const { data, error } = await supabase.functions.invoke("explainHomework", {
         body: { action: "verify", apiKey: keyToTest },
       });
@@ -134,6 +135,8 @@ export default function SettingsScreen() {
     });
   }, []);
 
+  const openAccount = () => router.push("/account" as never);
+
   return (
     <View className="flex-1 bg-background">
       <ScrollView contentContainerClassName="px-4 pb-10 gap-4" keyboardShouldPersistTaps="handled">
@@ -145,6 +148,12 @@ export default function SettingsScreen() {
             ใส่คีย์ของคุณเอง (ไม่บังคับ) — แอปใช้งานได้เลยแม้ไม่ใส่คีย์
           </Text>
         </View>
+
+        <Pressable onPress={openAccount} className="gap-2 rounded-2xl border border-secondary bg-secondary p-4">
+          <Text className="font-bold text-foreground">สมาชิกและโควตาการใช้งาน</Text>
+          <Text className="text-xs leading-5 text-muted-foreground">ผู้ใช้ทั่วไปใช้ AI ได้ 10 ครั้ง/วัน สมาชิกใช้ได้ 50 ครั้ง/วัน</Text>
+          <Text className="font-semibold text-primary">เข้าสู่ระบบ / สมัครสมาชิก</Text>
+        </Pressable>
 
         <View className="gap-3 rounded-2xl bg-muted p-4">
           <View className="flex-row items-center gap-2">
