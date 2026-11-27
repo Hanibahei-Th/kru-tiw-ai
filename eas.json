@@ -21,7 +21,8 @@
       },
       "ios": {
         "resourceClass": "m-medium"
-      }
+      },
+      "node": "22.13.0"
     }
   },
   "submit": {
