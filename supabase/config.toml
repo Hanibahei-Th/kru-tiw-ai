@@ -1,0 +1,6 @@
+project_id = "swvyxgdxvdwoxfbwtyxu"
+
+[storage.buckets.homework_images]
+public = true
+file_size_limit = "1MiB"
+allowed_mime_types = ["image/jpeg", "image/png", "image/webp"]
