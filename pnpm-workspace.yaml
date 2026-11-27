@@ -87,4 +87,4 @@ trustLockfile: true
 lockfileIncludeTarballUrl: false
 minimumReleaseAge: 1440
 configDependencies:
-  miaoda-expo-devkit: 0.1.1-beta.131
+  miaoda-expo-devkit: 0.1.1-beta.131+sha512-09IAFmIXJ/Wjbqvf8J35LkZLF5AAW6JLCW64ISRJMZ/sywSCHzduaG1ItpiQciw/gPnmSGIaCfyqpqMsYX5AuQ==
