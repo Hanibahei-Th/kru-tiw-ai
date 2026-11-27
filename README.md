@@ -1,123 +1,249 @@
 # ครูติว AI
 
-แอปพลิเคชันมือถือสำหรับติวการบ้านนักเรียนไทยระดับชั้น ป.4–ม.3 ในวิชาคณิตศาสตร์ วิทยาศาสตร์ และภาษาอังกฤษ
-ถ่ายภาพการบ้าน เลือกวิชา แล้วรับคำแนะนำวิธีคิดทีละขั้นตอนเป็นภาษาไทย
+<p align="center">
+  <img src="assets/icon.png" alt="ไอคอนแอปครูติว AI" width="160" />
+</p>
 
-ออกแบบตามหลัก **Socratic method** — AI จะไม่เฉลยคำตอบสุดท้าย แต่ชี้แนวทางให้เด็กคิดและลงมือทำเอง
+<p align="center">
+  แอปช่วยนักเรียนไทยคิดวิธีทำการบ้านทีละขั้นจากภาพ<br />
+  เน้นชวนคิดแบบ Socratic ไม่เฉลยคำตอบสุดท้าย
+</p>
 
-## ฟีเจอร์
+> โปรเจกต์นี้สร้างด้วย Expo SDK 55, React Native และ TypeScript รองรับ Android, iOS และ Web
 
-- **ติวการบ้านด้วยภาพ** — ถ่ายจากกล้องหรือเลือกจากคลังภาพ ระบบย่อภาพอัตโนมัติก่อนส่งวิเคราะห์
-- **เลือกวิชาได้ 3 วิชา** — คณิตศาสตร์ วิทยาศาสตร์ ภาษาอังกฤษ
-- **คำอธิบายทีละขั้น** — 3–5 ขั้นตอน พร้อมประโยคให้กำลังใจปิดท้าย
-- **ประวัติย้อนหลัง** — เก็บภาพย่อ วิชา และขั้นตอนไว้ดูซ้ำ
-- **ตั้งค่า API Key ส่วนตัว** — ใส่ Gemini API Key ของตนเองได้ พร้อมปุ่มทดสอบการเชื่อมต่อ
+## สารบัญ
+
+- [ความสามารถ](#ความสามารถ)
+- [ภาพรวมระบบ](#ภาพรวมระบบ)
+- [เทคโนโลยี](#เทคโนโลยี)
+- [เริ่มพัฒนา](#เริ่มพัฒนา)
+- [ตั้งค่า Supabase](#ตั้งค่า-supabase)
+- [ตั้งค่า Gemini](#ตั้งค่า-gemini)
+- [รันแอป](#รันแอป)
+- [สร้างไฟล์สำหรับ Store ด้วย EAS](#สร้างไฟล์สำหรับ-store-ด้วย-eas)
+- [โครงสร้างโปรเจกต์](#โครงสร้างโปรเจกต์)
+- [ข้อมูลและความปลอดภัย](#ข้อมูลและความปลอดภัย)
+- [การแก้ปัญหาเบื้องต้น](#การแก้ปัญหาเบื้องต้น)
+- [สถานะและข้อจำกัด](#สถานะและข้อจำกัด)
+
+## ความสามารถ
+
+- ถ่ายภาพการบ้านด้วยกล้องหรือเลือกภาพจากคลังรูป
+- ย่อภาพก่อนส่งวิเคราะห์ โดยใช้ภาพ JPEG สำหรับคำขอ AI
+- เลือกวิชาได้ 3 วิชา: คณิตศาสตร์, วิทยาศาสตร์ และภาษาอังกฤษ
+- รับคำแนะนำเป็นภาษาไทยทีละขั้น พร้อมคำใบ้ให้กำลังใจ
+- ดูและลบประวัติการถาม ซึ่งแยกตามรหัสอุปกรณ์
+- ตั้ง Gemini API Key ส่วนตัวและทดสอบคีย์ได้
+- ใช้ธีมสีพาสเทล พร้อมรองรับการตั้งค่าโหมดสว่าง/มืดของระบบ
+
+## ภาพรวมระบบ
+
+```text
+Expo / React Native app
+   ├── Supabase Storage: เก็บภาพการบ้าน
+   ├── Supabase Database: เก็บวิชา ขั้นตอน คำใบ้ และรหัสอุปกรณ์
+   └── Supabase Edge Function: explainHomework
+          ├── Gemini API โดยตรง เมื่อผู้ใช้ตั้ง API Key ส่วนตัว
+          └── AI Gateway เมื่อไม่ได้ตั้งคีย์ส่วนตัว
+```
+
+เมื่อผู้ใช้ส่งภาพ แอปอัปโหลดภาพไปยัง Storage แล้วเรียก Edge Function เพื่อรับคำอธิบาย จากนั้น Edge Function บันทึกข้อมูลประวัติลง `homework_history` และส่งคำตอบกลับมาให้แอป
 
 ## เทคโนโลยี
 
-| ชั้นระบบ | เทคโนโลยี |
+| ส่วน | เทคโนโลยี |
 | --- | --- |
-| แอปพลิเคชัน | Expo SDK 55 + React Native |
+| แอป | Expo SDK 55, React Native 0.83, React 19 |
 | ภาษา | TypeScript |
-| การนำทาง | expo-router |
-| การจัดสไตล์ | NativeWind v4 (Tailwind CSS) |
-| ไอคอน | lucide-react-native |
-| ฐานข้อมูล | Supabase (PostgreSQL + RLS) |
-| ไฟล์ภาพ | Supabase Storage |
-| ประมวลผล AI | Supabase Edge Function (Deno) + Gemini 2.5 Flash |
+| Routing | Expo Router |
+| สไตล์ | NativeWind v4, Tailwind CSS |
+| UI และไอคอน | React Native primitives, lucide-react-native |
+| ฐานข้อมูลและ Storage | Supabase, PostgreSQL, Supabase Storage |
+| Backend | Supabase Edge Functions (Deno) |
+| AI | Gemini 2.5 Flash |
+| Build | EAS Build |
 
-## เริ่มต้นใช้งาน
+## เริ่มพัฒนา
+
+### สิ่งที่ต้องมี
+
+- Node.js 22.13.0 ขึ้นไป
+- pnpm 11.28.9 ตาม `packageManager` ใน `package.json`
+- Git
+- Expo account สำหรับ EAS Build
+- Supabase project สำหรับฟังก์ชัน ประวัติ และ Storage
+
+ติดตั้ง pnpm ผ่าน Corepack แล้วติดตั้ง dependencies:
 
 ```bash
-# ติดตั้ง dependencies
-pnpm install
+corepack enable
+corepack prepare pnpm@11.28.9 --activate
+pnpm install --frozen-lockfile
+```
 
-# คัดลอกไฟล์ environment แล้วเติมค่าของโปรเจกต์คุณ
-cp .env.example .env
+ไฟล์ `pnpm-workspace.yaml` มี checksum สำหรับ config dependency ของ Miaoda DevKit ซึ่งจำเป็นต่อการติดตั้งแบบ frozen และ EAS Build
 
-# เริ่ม development server
+## ตั้งค่า Supabase
+
+1. สร้าง Supabase project แล้วคัดลอก URL และ anon key จาก Project Settings → API.
+2. สร้างไฟล์ `.env` จากตัวอย่าง แล้วกรอกค่าจริง:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   ตัวแปรที่แอปอ่านตอน build:
+
+   | ตัวแปร | ใช้ทำอะไร |
+   | --- | --- |
+   | `EXPO_PUBLIC_SUPABASE_URL` | URL ของ Supabase project |
+   | `EXPO_PUBLIC_SUPABASE_ANON_KEY` | anon/publishable key สำหรับแอป |
+   | `EXPO_PUBLIC_SENTRY_DSN` | ไม่บังคับ; ส่งรายงานข้อผิดพลาดไป Sentry |
+
+   ตัวแปรที่ขึ้นต้นด้วย `EXPO_PUBLIC_` จะถูกรวมอยู่ใน bundle ของแอป จึงห้ามใส่ service-role key หรือ secret key ในตัวแปรกลุ่มนี้
+
+3. ติดตั้ง Supabase CLI และล็อกอิน จากนั้นเชื่อมโปรเจกต์และ apply migration:
+
+   ```bash
+   supabase login
+   supabase link --project-ref <project-ref>
+   supabase db push
+   ```
+
+4. สร้าง Storage bucket `homework_images` ให้เป็น public จำกัดขนาดไฟล์ `1 MiB` และชนิดไฟล์ `image/jpeg`, `image/png`, `image/webp` ตาม `supabase/config.toml` แล้วตรวจสอบ policies ให้ตรงกับการใช้งาน
+5. Deploy Edge Function:
+
+   ```bash
+   supabase functions deploy explainHomework
+   ```
+
+แอปมี fallback URL และ anon key สำหรับ placeholder เพื่อให้ config ไม่ว่าง แต่จะเชื่อม backend จริงไม่ได้หากยังไม่ได้กำหนดค่า Supabase
+
+## ตั้งค่า Gemini
+
+มีสองทางเลือก:
+
+- **คีย์ส่วนตัวของผู้ใช้:** ผู้ใช้ใส่ Gemini API Key ในหน้า Settings ของแอป คีย์จะเก็บใน SecureStore บนอุปกรณ์ (เว็บใช้ localStorage) และส่งให้ Edge Function เมื่อเรียก AI
+- **คีย์ของระบบ:** ตั้ง `INTEGRATIONS_API_KEY` เป็น secret ของ Supabase Edge Function เพื่อให้เรียก AI Gateway เมื่อผู้ใช้ไม่ได้ตั้งคีย์ส่วนตัว:
+
+  ```bash
+  supabase secrets set INTEGRATIONS_API_KEY=<gateway-key>
+  ```
+
+ห้ามเก็บ Gemini key, gateway key, Supabase service-role key หรือ Apple/Google signing credential ใน Git หรือใน `.env` ที่เผยแพร่สู่สาธารณะ
+
+## รันแอป
+
+เริ่ม Metro/Expo development server:
+
+```bash
 pnpm start
 ```
 
-### ตัวแปรสภาพแวดล้อม
-
-| ตัวแปร | คำอธิบาย |
-| --- | --- |
-| `EXPO_PUBLIC_SUPABASE_URL` | URL ของโปรเจกต์ Supabase |
-| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | anon key สำหรับฝั่งแอป |
-| `SUPABASE_PROJECT_ID` | reference id ของโปรเจกต์ |
-| `EXPO_PUBLIC_APP_ID` | รหัสแอปบนแพลตฟอร์ม |
-
-## ฐานข้อมูล
-
-ตาราง `homework_history` เก็บประวัติการถาม พร้อมเปิดใช้ Row Level Security
-
-| คอลัมน์ | ชนิด | คำอธิบาย |
-| --- | --- | --- |
-| `id` | uuid | รหัสหลัก |
-| `device_id` | text | รหัสอุปกรณ์ |
-| `subject` | text | `math` / `sci` / `eng` |
-| `image_url` | text | URL ภาพใน Storage |
-| `steps` | jsonb | ขั้นตอนคำอธิบาย |
-| `hint` | text | ประโยคให้กำลังใจ |
-| `created_at` | timestamptz | เวลาบันทึก |
-
-Storage bucket `homework_images` เป็นแบบสาธารณะ จำกัดไฟล์ 1 MiB และรับเฉพาะ `image/jpeg`, `image/png`, `image/webp`
-
-## ระบบหลังบ้าน
-
-Edge Function `explainHomework` รับภาพการบ้าน ส่งให้ Gemini วิเคราะห์ แล้วคืนขั้นตอนคำอธิบายพร้อมบันทึกประวัติ
+คำสั่งทางลัด:
 
 ```bash
-# deploy ฟังก์ชัน
-supabase functions deploy explainHomework
-
-# ตั้งคีย์สำรองของแอป (ไม่บังคับ)
-supabase secrets set GEMINI_API_KEY=<your-key>
+pnpm android
+pnpm ios
+pnpm web
 ```
 
-**การเลือกคีย์**
+โปรเจกต์ใช้ `expo-dev-client` หากทดสอบบนอุปกรณ์จริงอาจต้องติดตั้ง development build ก่อน การรัน `pnpm ios` บน Linux ไม่สามารถเปิด iOS Simulator ได้; ใช้ EAS cloud build เพื่อสร้างแอป iOS
 
-1. ถ้าผู้ใช้บันทึกคีย์ส่วนตัวไว้ → เรียก Google Gemini โดยตรงด้วยคีย์ของผู้ใช้
-2. ถ้าไม่มีคีย์ของผู้ใช้ → เรียกผ่าน AI Gateway ของแพลตฟอร์ม (`INTEGRATIONS_API_KEY`)
+## สร้างไฟล์สำหรับ Store ด้วย EAS
 
-คีย์ของผู้ใช้ถูกเก็บใน SecureStore ของอุปกรณ์เท่านั้น ไม่ถูกบันทึกลงฐานข้อมูล
+ล็อกอินและตรวจ project:
+
+```bash
+npx eas-cli@latest login
+npx eas-cli@latest project:info
+```
+
+ใน repository มี `eas.json` กำหนด production profile แล้ว:
+
+```bash
+# Android App Bundle (.aab) สำหรับ Google Play
+npx eas-cli@latest build --platform android --profile production
+
+# iOS archive (.ipa) สำหรับ App Store Connect
+npx eas-cli@latest build --platform ios --profile production
+```
+
+- Android production profile สร้าง `.aab` และเพิ่ม `versionCode` อัตโนมัติ
+- iOS production profile ต้องใช้ Apple Developer Program และ distribution signing credentials
+- iOS bundle ID ปัจจุบันคือ `com.tatsana.pn.krutiwai`
+- Android application ID ปัจจุบันคือ `com.miaoda.krutewai`
+- ดาวน์โหลดไฟล์เมื่อ build สำเร็จจากลิงก์ artifact ใน EAS dashboard หรือผลลัพธ์ CLI
+
+หาก EAS ถามเรื่อง encryption ให้ตอบตามลักษณะการเข้ารหัสที่แอปใช้จริงและข้อกำหนดของ Apple ห้ามเปลี่ยน declaration โดยไม่ตรวจสอบก่อน
 
 ## โครงสร้างโปรเจกต์
 
-```
+```text
 src/
   app/
-    _layout.tsx              โครงหลักของแอป
-    index.tsx                หน้าเริ่มต้น
-    (tabs)/_layout.tsx       แถบแท็บ 3 แท็บ
-    (tabs)/home.tsx          หน้าติวการบ้าน
-    (tabs)/history.tsx       หน้าประวัติ
-    (tabs)/settings.tsx      หน้าตั้งค่า API Key
+    _layout.tsx                 Root layout และ StatusBar
+    (tabs)/
+      _layout.tsx               แถบนำทางด้านล่าง
+      home.tsx                  ถ่าย/เลือกรูป เลือกวิชา และขอคำอธิบาย
+      history.tsx               โหลดและลบประวัติ
+      settings.tsx              ตั้งค่าและทดสอบ Gemini API Key
+  client/supabase.ts            Supabase client
   components/
-    StepCard.tsx             การ์ดแสดงขั้นตอน
-    HistoryCard.tsx          การ์ดรายการประวัติ
-    SubjectPicker.tsx        ตัวเลือกวิชา
+    HistoryCard.tsx             การ์ดประวัติและคำอธิบาย
+    StepCard.tsx                การ์ดขั้นตอนคำแนะนำ
+    SubjectPicker.tsx           ตัวเลือกวิชา
+  db/api.ts                     คำสั่งอ่าน/ลบประวัติ
   lib/
-    apiKey.ts                จัดเก็บและอ่านคีย์ในเครื่อง
-    image.ts                 ย่อภาพก่อนส่ง
-    upload.ts                อัปโหลดภาพขึ้น Storage
-    device.ts                รหัสอุปกรณ์
-    subjects.ts              รายการวิชาและสี
-    functionError.ts         อ่านข้อความผิดพลาดจากฟังก์ชัน
-  db/api.ts                  คำสั่งฐานข้อมูล
+    apiKey.ts                   จัดเก็บคีย์ใน SecureStore/localStorage
+    device.ts                   สร้าง/อ่านรหัสอุปกรณ์
+    image.ts                    เตรียมและย่อภาพ
+    subjects.ts                 วิชาและสีประจำวิชา
+    upload.ts                   อัปโหลดภาพไป Supabase Storage
+  global.css                    สีธีมสว่างและมืด
+  types/                        TypeScript และฐานข้อมูล
 supabase/
-  functions/explainHomework/index.ts
-  migrations/
-docs/prd.md                  เอกสารความต้องการ
+  functions/explainHomework/    ตรวจภาพและเรียก Gemini
+  migrations/                   โครงสร้างตารางและ RLS policies
+docs/prd.md                     เอกสารความต้องการผลิตภัณฑ์
+assets/                         ไอคอนและ favicon
+app.json                        Expo app configuration
+eas.json                       EAS build profiles
+pnpm-workspace.yaml             pnpm catalog และ config dependency
 ```
 
-## เอกสารเพิ่มเติม
+## ข้อมูลและความปลอดภัย
 
-- [`docs/prd.md`](docs/prd.md) — เอกสารความต้องการฉบับเต็ม
+- ตาราง `homework_history` เก็บ `device_id`, `subject`, `image_url`, `steps`, `hint` และ `created_at`
+- รหัสอุปกรณ์สร้างในแอปและเก็บใน local storage ของอุปกรณ์ ไม่มีระบบบัญชีผู้ใช้หรือซิงก์ข้ามอุปกรณ์
+- ภาพเก็บใน bucket `homework_images`; URL ของภาพถูกใช้ในรายการประวัติ
+- API key ส่วนตัวเก็บใน SecureStore บนอุปกรณ์ ไม่เก็บในฐานข้อมูล
+- `.env`, `node_modules`, native build folders และไฟล์ชั่วคราวถูกละเว้นด้วย `.gitignore`
+- migration ปัจจุบันเปิด RLS แต่ policies สำหรับ anon อนุญาตให้อ่าน/เพิ่ม/แก้ไข/ลบข้อมูลได้กว้าง จึงเหมาะกับต้นแบบและการพัฒนามากกว่าระบบ production ที่เก็บข้อมูลผู้ใช้จริง ควรจำกัด policies ตามผู้ใช้หรืออุปกรณ์และทบทวนการเข้าถึง Storage ก่อนเผยแพร่
 
-## หมายเหตุ
+## การแก้ปัญหาเบื้องต้น
 
-- แอปไม่มีการเข้าสู่ระบบ ข้อมูลจึงแยกตามรหัสอุปกรณ์
-- นโยบาย RLS ปัจจุบันอนุญาตให้อ่านประวัติได้ทั้งหมด เหมาะกับต้นแบบ ควรปรับก่อนใช้งานจริงในวงกว้าง
-- ทุกครั้งที่กดอธิบายจะมีการเรียก AI หนึ่งครั้ง ซึ่งมีค่าใช้จ่าย
+### EAS แจ้งว่าไม่มี Expo project
+
+อยู่ใน root ของโปรเจกต์ Expo ที่มี `app.json`, `package.json`, `pnpm-workspace.yaml` และ `src/` แล้วตรวจ `npx eas-cli@latest project:info` อย่ารันจากโฟลเดอร์ server หรือโฟลเดอร์ดาวน์โหลดที่เป็นคนละโปรเจกต์
+
+### EAS ติดตั้ง dependencies ไม่ผ่าน
+
+ตรวจว่าใช้ Node 22.13.0 ขึ้นไป, pnpm 11.28.9 และ lockfile ตรงกับ workspace config:
+
+```bash
+node --version
+pnpm --version
+pnpm install --frozen-lockfile
+```
+
+### แอปเปิดแต่เรียก backend ไม่ได้
+
+ตรวจ `EXPO_PUBLIC_SUPABASE_URL`, `EXPO_PUBLIC_SUPABASE_ANON_KEY`, การ deploy `explainHomework`, Edge Function secrets และ Storage bucket/policies
+
+## สถานะและข้อจำกัด
+
+- มี production AAB build ผ่าน EAS; ดู build history ที่ [Expo project](https://expo.dev/accounts/tatsana.pn/projects/krutew-ai)
+- การส่งขึ้น Google Play Console และ App Store Connect ต้องทำในบัญชีของเจ้าของแอป และยังต้องกรอก store listing, ภาพหน้าจอ, privacy details และข้อมูลตามที่แต่ละ store ขอ
+- ยังไม่มีภาพ screenshot ใน README นี้; ไอคอนด้านบนเป็น asset จาก repository
+- ดูข้อกำหนดผลิตภัณฑ์เพิ่มเติมได้ที่ [`docs/prd.md`](docs/prd.md)
